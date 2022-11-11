@@ -64,7 +64,8 @@ public:
     // returns error code
     // 0: everything is fine
     // 1: termination state
-    // 2: error
+    // 2: waiting for input
+    // 3: error
     int val1, val2, index;
     vector<int> modes;
     int op = opList[counter];
@@ -83,6 +84,10 @@ public:
         stepCounter(4);
         break;
       case 3:
+        if (input.size() <= inputCounter) {
+          // if no input available, suspend
+          return 2;
+        }
         opList[getValue(1, 1)] = input[inputCounter];
         inputCounter += 1;
         stepCounter(2);
@@ -137,12 +142,12 @@ public:
       case 99:
         return 1;
       default:
-        return 2;
+        return 3;
     }
     return 0;
   }
 
-  void runAll() {
+  int runAll() {
     int errorCode;
     while (!(errorCode = runCurrent())) {
       //cout << "Counter: " << counter << endl;
@@ -151,10 +156,12 @@ public:
       }
       //cout << endl;
     };
-    if (errorCode != 1) {
+    if (errorCode > 2) {
       cout << "Error code returned!" << endl;
     }
+    return errorCode;
   }
+
 };
 
 std::ostream & operator<<(std::ostream & Str, IntCodeInterpreter const & v) { 
@@ -206,20 +213,28 @@ void part1() {
 }
 
 void part2() {
-  vector<int> input = parseInput("inputTest.txt");
+  vector<int> input = parseInput("input.txt");
   vector<int> phases = {5, 6, 7, 8, 9};
   int maxOutput = 0;
   // it should return on input instead of on halt?
   do {
-    int inp = 0;
+    vector<IntCodeInterpreter> interps;
     for (int i = 0; i < phases.size(); i++) {
-      IntCodeInterpreter interp(input, {phases[i], inp});
-      interp.runAll();
-      if (!interp.output.empty())
-        inp = interp.output.back();
-      else
-        cout << "Error occured, output is empty!" << endl;
+      interps.push_back(IntCodeInterpreter(input, {phases[i]}));
     }
+
+    int errorCode;
+    int inp = 0;
+    do {
+      for (int i = 0; i < phases.size(); i++) {
+        interps[i].input.push_back(inp);
+        errorCode = interps[i].runAll();
+        if (!interps[i].output.empty())
+          inp = interps[i].output.back();
+        else
+          cout << "Error occured, output is empty!" << endl;
+      }
+    } while (errorCode != 1);
     maxOutput = max(maxOutput, inp);
   } while (next_permutation(phases.begin(), phases.end()));
 
